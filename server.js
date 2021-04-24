@@ -1,5 +1,6 @@
 //--------------------------MODULES----------------------------------
 const fs = require('fs');
+var replaceall = require('replaceall');
 const http = require('http');
 const os = require('os');
 var crypto = require('crypto');
@@ -58,10 +59,7 @@ User = mongoose.model('User', userSchema);
 //-------------------------------------------------------------
 const server = http.createServer((req, res) => {
   //-----------FILE PATHS-----------------
-  template_path = './templates/';
-  css_path = './css/';
-  javascript_path = './javascripts/';
-  serverImages_path = './img/';
+  assets = './assets/';
   //--------------------------------------
   //---------------------------------------------------------------------------------------
   // all SEO related stuffs
@@ -69,18 +67,7 @@ const server = http.createServer((req, res) => {
   const sitemap = fs.readFileSync('./sitemap.xml', 'utf8');
 
   // all templates related stuffs
-  const index = fs.readFileSync(template_path + 'index.html', 'utf8');
-
-  // all css related stuffs
-  const index_css = fs.readFileSync(css_path + 'style.css', 'utf8');
-  const bootstrap_css = fs.readFileSync(css_path + 'bootstrap.min.css', 'utf8');
-
-  // all javascript related stuffs
-  const index_js = fs.readFileSync(javascript_path + 'script.js', 'utf8');
-  const bootstrap_js = fs.readFileSync(
-    javascript_path + 'bootstrap.min.js',
-    'utf8'
-  );
+  const index = fs.readFileSync('index.html', 'utf8');
 
   //---------------------------------------------------------------------------------------
 
@@ -108,29 +95,22 @@ const server = http.createServer((req, res) => {
   //------------------ROUTING------------------------------------
   if (req.method == 'GET') {
     if (path == '/sitemap.xml') {
-      route(res, 200, 'OK', 'text/xml', sitemap, {});
+      route(res, 200, 'OK', sitemap, {});
     } else if (path == '/robots.txt') {
-      route(res, 200, 'OK', 'text/plain', robots, {});
+      route(res, 200, 'OK', robots, {});
     } else if (path == '/') {
-      route(res, 200, 'OK', 'text/html', index, {});
-    } else if (path == '/js/script.js') {
-      route(res, 200, 'OK', 'text/javascript', index_js, {});
-    } else if (path == '/js/bootstrap.min.js') {
-      route(res, 200, 'OK', 'text/javascript', bootstrap_js, {});
-    } else if (path == '/css/style.css') {
-      route(res, 200, 'OK', 'text/css', index_css, {});
-    } else if (path == '/css/bootstrap.min.css') {
-      route(res, 200, 'OK', 'text/css', bootstrap_css, {});
-    } else if (path == '/img/') {
-      var image_name = (path + '').substring(5);
-      console.log(image_name);
-      imageRenderer(image_name, res);
+      route(res, 200, 'OK', index, {});
+    } else if (path.startsWith('/assets')) {
+      value = path.substring(9);
+      render(path, res);
+    } else if (path.startsWith('/form')) {
+      value = path.substring(6);
+      render(path, res);
     } else {
       route(
         res,
         404,
         'Page Not Found',
-        'text/html',
         `<h1>No Page Found</h1> <br>${req.url} is not available`,
         {}
       );
@@ -359,14 +339,10 @@ const server = http.createServer((req, res) => {
 });
 
 // Route Function
-function route(res, statCode, statMsg, contType, pageCont, ejsParams) {
+function route(res, statCode, statMsg, pageCont, ejsParams) {
   res.statusCode = statCode;
   res.statusMessage = statMsg;
   res.setHeader('Server', 'KaliServer');
-  res.setHeader('Content-Type', contType);
-  if (contType == 'text/html') {
-    pageCont = ejs.render(pageCont, ejsParams);
-  }
   res.end(pageCont);
 }
 
@@ -421,16 +397,33 @@ function time() {
   return time;
 }
 
-function imageRenderer(image_name, res) {
-  fs.access(serverImages_path + image_name, fs.F_OK, (err) => {
-    if (err) {
-      console.error(err);
-      route(res, 404, 'Page Not Found', 'text/html', 'No such image', {});
-    } else {
-      const img = fs.readFileSync(serverImages_path + image_name);
-      route(res, 200, 'OK', 'image/jpg', img, {});
+function render(path, res) {
+  //console.log(path);
+  path = replaceall('/', '\\', path + '');
+  //console.log(path);
+  fs.access(
+    'c:\\Users\\RudraX\\Desktop\\convention\\' + path,
+    fs.F_OK,
+    (err) => {
+      if (err) {
+        console.error(err);
+        route(res, 404, 'Page Not Found', 'No File', {});
+      } else {
+        const file = fs.readFileSync(
+          'c:\\Users\\RudraX\\Desktop\\convention\\' + path
+        );
+        if (path.endsWith('.svg')) {
+          res.statusCode = 200;
+          res.statusMessage = 'OK';
+          res.setHeader('Server', 'KaliServer');
+          res.setHeader('Content-Type', 'image/svg+xml');
+          res.end(file);
+        } else {
+          route(res, 200, 'OK', file, {});
+        }
+      }
     }
-  });
+  );
 }
 
 server.listen(port, hostname, () => {
